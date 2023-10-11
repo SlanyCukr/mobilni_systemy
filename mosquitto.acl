@@ -1,0 +1,29 @@
+# Define ACL for windUser
+user windUser
+topic read /devices/wh1080-fei/windSpeed_mps
+topic read /devices/wh1080-fei/windGust_mps
+topic read /devices/wh1080-fei/windDir
+
+# Define ACL for rainUser
+user rainUser
+topic read /devices/wh1080-fei/rain_mm
+topic read /devices/wh1080-fei/rainTotal
+topic read /devices/wh1080-fei/hourRain_mm
+topic read /devices/wh1080-fei/rain24_mm
+topic read /devices/wh1080-fei/dayRain_mm
+topic read /devices/wh1080-fei/rainRate_mm_per_hour
+
+# Define ACL for tempUser
+user tempUser
+topic read /devices/wh1080-fei/inTemp_C
+topic read /devices/wh1080-fei/outTemp_C
+topic read /devices/wh1080-fei/appTemp_C
+topic read /devices/wh1080-fei/dewpoint_C
+topic read /devices/wh1080-fei/heatindex_C
+topic read /devices/wh1080-fei/humidex_C
+topic read /devices/wh1080-fei/inDewpoint_C
+topic read /devices/wh1080-fei/windchill_C
+
+# Define ACL for adminUser (all access)
+user adminUser
+topic read /devices/wh1080-fei/#
