@@ -105,7 +105,7 @@ if __name__ == '__main__':
 
     mqtt_app = MqttApp(
         host="localhost",
-        port=1883,
+        port=8883,
         on_message=on_message,
         topic="/devices/wh1080-fei/#",
         user="tempUser",

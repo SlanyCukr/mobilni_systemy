@@ -13,6 +13,8 @@ class MqttApp:
                  keepalive: int = 60
     ):
         client = mqtt.Client()
+        client.tls_set("certificate.crt")
+        client.tls_insecure_set(True)
         client.on_connect = self.on_connect
         client.on_message = on_message
 
