@@ -1,0 +1,1 @@
+Zvolit si jinou složku pro stahování souborů, nedávat to přímo do stejné složky jako je program

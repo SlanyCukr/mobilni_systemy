@@ -12,7 +12,7 @@ from google.auth.transport.requests import Request
 
 
 # Google Drive API scopes
-SCOPES = ['https://www.googleapis.com/auth/drive.metadata.readonly']
+SCOPES = ['https://www.googleapis.com/auth/drive.file', 'https://www.googleapis.com/auth/drive.metadata.readonly']
 
 
 # Function to authenticate Google Drive API
@@ -63,20 +63,6 @@ def list_files_in_folder(service, folder_id):
         return [f"An error occurred: {error}"]
 
 
-# Function to upload a file to Google Drive
-def upload_file():
-    file_path = filedialog.askopenfilename()
-    if file_path:
-        try:
-            service = authenticate_drive_api()
-            file_metadata = {'name': os.path.basename(file_path)}
-            media = MediaFileUpload(file_path, resumable=True)
-            file = service.files().create(body=file_metadata, media_body=media, fields='id').execute()
-            messagebox.showinfo("Upload Complete", f"File {file_metadata['name']} uploaded successfully.")
-        except HttpError as error:
-            messagebox.showerror("Upload Error", f"An error occurred: {error}")
-
-
 # Function to download a file
 def download_file(service, file_id, file_name):
     try:
@@ -84,6 +70,25 @@ def download_file(service, file_id, file_name):
         file_stream = request.execute()
         with open(file_name, 'wb') as f:
             f.write(file_stream)
+        return True
+    except HttpError as error:
+        return False
+
+
+# Function to upload a file to Google Drive
+def upload_file(service, file_path, folder_id):
+    try:
+        file_metadata = {
+            'name': file_path.split('/')[-1],
+            'parents': [folder_id]
+        }
+        media = MediaFileUpload(file_path)
+        request = service.files().create(
+            body=file_metadata,
+            media_body=media,
+            fields="id",
+        )
+        request.execute()
         return True
     except HttpError as error:
         return False
@@ -160,6 +165,22 @@ def create_gui():
             update_file_canvas(current_folder_id)
 
     folder_listbox.bind('<<ListboxSelect>>', on_folder_select)
+
+    # Function to handle file uploads
+    def upload_file_to_drive():
+        file_path = filedialog.askopenfilename()
+        if file_path:
+            result = upload_file(service, file_path, current_folder_id)
+            if result:
+                print(f"Uploaded: {os.path.basename(file_path)}")
+                # Refresh the file list
+                update_file_canvas(current_folder_id)
+            else:
+                print(f"Failed to upload: {os.path.basename(file_path)}")
+
+    # Create an "Upload" button
+    upload_button = tk.Button(root, text="Upload", command=upload_file_to_drive)
+    upload_button.pack(side=tk.BOTTOM, padx=10, pady=10)
 
     # Function to handle file downloads
     def download_selected_files():
