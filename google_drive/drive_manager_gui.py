@@ -1,5 +1,7 @@
+import hashlib
 import os
 import tkinter as tk
+from time import sleep
 from tkinter import filedialog
 import threading
 
@@ -45,6 +47,21 @@ class DriveManagerGUI:
 
         # List root folders in the initial folder Listbox
         self.update_folder_listbox(None)
+
+        self.download_folder = os.getcwd()  # Default download folder is the current working directory
+
+        # Create a "Change Download Folder" button
+        change_download_folder_button = tk.Button(self.root, text="Change Download Folder",
+                                                  command=self.change_download_folder)
+        change_download_folder_button.pack(side=tk.BOTTOM, padx=10, pady=10)
+
+        # Dictionary to store file metadata
+        self.downloaded_files = {}  # Format: {local_path: {'file_id': str, 'last_mod_time': float, 'md5_checksum': str, 'parent_folder_id': 'str'}}
+
+        # Start the periodic check for file changes in a separate thread
+        self.file_check_thread = threading.Thread(target=self.check_for_file_changes)
+        self.file_check_thread.daemon = True  # Daemonize thread to close it when the main program closes
+        self.file_check_thread.start()
 
         self.root.mainloop()
 
@@ -103,16 +120,55 @@ class DriveManagerGUI:
             download_thread = threading.Thread(target=self.download_files, args=(selected_files,))
             download_thread.start()
 
+    def change_download_folder(self):
+        folder_selected = filedialog.askdirectory()
+        if folder_selected:
+            self.download_folder = folder_selected
+            print("Download folder changed to:", self.download_folder)
+
     def download_files(self, selected_files):
         for index in selected_files:
             checkbutton = self.file_canvas.winfo_children()[index]
             file_id = checkbutton.file_id
             file_name = checkbutton.file_name
-            result = self.drive_api.download_file(file_id, file_name)
+            local_path = os.path.join(self.download_folder, file_name)
+            result = self.drive_api.download_file(file_id, local_path)
             if result:
                 print(f"Downloaded: {file_name}")
+                self.downloaded_files[local_path] = {
+                    'file_id': file_id,
+                    'last_mod_time': os.path.getmtime(local_path),
+                    'md5_checksum': self.calculate_md5(local_path),
+                    'parent_folder_id': self.current_folder_id,
+                }
             else:
                 print(f"Failed to download: {file_name}")
+
+    def check_for_file_changes(self):
+        while True:
+            for local_path, metadata in list(self.downloaded_files.items()):
+                if os.path.exists(local_path):
+                    current_mod_time = os.path.getmtime(local_path)
+                    if current_mod_time > metadata['last_mod_time']:
+                        current_md5 = self.calculate_md5(local_path)
+                        if current_md5 != metadata['md5_checksum']:
+                            print(f"File changed, uploading: {os.path.basename(local_path)}")
+                            result = self.drive_api.upload_file(local_path, metadata['parent_folder_id'])
+                            if result:
+                                print(f"Uploaded: {os.path.basename(local_path)}")
+                                self.downloaded_files[local_path]['last_mod_time'] = current_mod_time
+                                self.downloaded_files[local_path]['md5_checksum'] = current_md5
+                            else:
+                                print(f"Failed to upload: {os.path.basename(local_path)}")
+            sleep(10)  # Check every 10 seconds
+
+    @staticmethod
+    def calculate_md5(file_path):
+        hash_md5 = hashlib.md5()
+        with open(file_path, "rb") as f:
+            for chunk in iter(lambda: f.read(4096), b""):
+                hash_md5.update(chunk)
+        return hash_md5.hexdigest()
 
     def go_back(self):
         if self.current_folder_id:

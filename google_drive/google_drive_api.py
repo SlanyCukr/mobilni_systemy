@@ -67,19 +67,28 @@ class GoogleDriveAPI:
 
     def upload_file(self, file_path, folder_id):
         try:
-            file_metadata = {
-                'name': file_path.split('/')[-1],
-                'parents': [folder_id]
-            }
-            media = MediaFileUpload(file_path.split('/')[-1])
-            request = self.service.files().create(
-                body=file_metadata,
-                media_body=media,
-                fields="id",
-            )
+            # Check if the file already exists in the folder
+            file_name = os.path.basename(file_path)
+            query = f"name = '{file_name}' and '{folder_id}' in parents"
+            results = self.service.files().list(q=query, spaces='drive', fields='files(id, name)').execute()
+            files = results.get('files', [])
+
+            file_metadata = {'name': file_name}
+            media = MediaFileUpload(file_path)
+
+            if files:
+                # File already exists, update it
+                file_id = files[0]['id']
+                request = self.service.files().update(fileId=file_id, body=file_metadata, media_body=media, fields="id")
+            else:
+                # File does not exist, create it
+                file_metadata['parents'] = [folder_id]
+                request = self.service.files().create(body=file_metadata, media_body=media, fields="id")
+
             request.execute()
             return True
         except HttpError as error:
+            print(f"An error occurred: {error}")
             return False
 
     def get_parent_folder_id(self, folder_id):
